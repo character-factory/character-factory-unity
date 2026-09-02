@@ -72,6 +72,20 @@ namespace CharacterFactory.Editor
             public SpawnInfo Spawned;
         }
 
+        [Serializable]
+        public class CfSubmitResponse
+        {
+            public string Server;
+            public string JobId;
+            public string Status;
+            public string Stage;
+            public float Progress;
+            public string IdempotencyKey;
+            public string JobUrl;
+            public string RecoveryCommand;
+            public List<ApiWarning> ServerWarnings;
+        }
+
         // ------------------------------------------------------------------ cf-list
         [CliCommand("cf-list", "List characters on the character-factory server.", Tags = new[] { "character-factory" })]
         public static async Task<object> List(
@@ -136,6 +150,35 @@ namespace CharacterFactory.Editor
             return ToResponse(client.BaseUrl, import, instance);
         }
 
+        // ------------------------------------------------------------------ cf-submit
+        [CliCommand("cf-submit", "POST a character-generation job and return immediately without waiting or importing.", Tags = new[] { "character-factory" })]
+        public static async Task<CfSubmitResponse> Submit(
+            [CliArg("prompt", "Character description for the generator.", Required = true)] string prompt,
+            [CliArg("interpreter", "Interpreter alias (see GET /v0/interpreters); server default when omitted.")] string interpreter = null,
+            [CliArg("turbo", "Use the server's faster texture-bake path (default false).")] bool turbo = false,
+            [CliArg("seed", "Optional integer seed for reproducible character generation.")] string seed = null,
+            [CliArg("idempotency-key", "Retry key for this intended create. Reuse only when retrying the same request; generated when omitted.")] string idempotencyKey = null,
+            [CliArg("server", ServerArgDescription)] string server = null)
+        {
+            var client = Client(server);
+            var request = CreateRequest(prompt, interpreter, turbo, seed, idempotencyKey);
+            Debug.Log($"[character-factory] create key {request.IdempotencyKey}; retain it only for retries of this request.");
+            var job = await client.CreateCharacterAsync(request);
+            Debug.Log($"[character-factory] queued job {job.Id}; returning without waiting for the bake.");
+            return new CfSubmitResponse
+            {
+                Server = client.BaseUrl,
+                JobId = job.Id,
+                Status = job.Status,
+                Stage = job.Stage,
+                Progress = job.Progress,
+                IdempotencyKey = request.IdempotencyKey,
+                JobUrl = $"{client.BaseUrl}/v0/jobs/{job.Id}",
+                RecoveryCommand = CharacterFactoryClient.ImportRecoveryCommand,
+                ServerWarnings = job.Warnings,
+            };
+        }
+
         // ------------------------------------------------------------------ cf-create
         [CliCommand("cf-create", "POST a prompt, wait for the server job, import the result, and optionally spawn it.", Tags = new[] { "character-factory" })]
         public static async Task<CfImportResponse> Create(
@@ -149,32 +192,18 @@ namespace CharacterFactory.Editor
             [CliArg("reference-controller", "Build/spawn the optional full-body reference setup.")] bool referenceController = false,
             [CliArg("speed", "Reference locomotion preview speed: 0 idle, 1 walk, 2 jog, 3 run.")] float speed = 0f,
             [CliArg("walking", "Shorthand for --reference-controller true --speed 1.")] bool walking = false,
-            [CliArg("timeout", "Seconds to wait for the server-side bake (default 300).")] int timeout = 300,
+            [CliArg("wait-seconds", "Seconds to wait for the server-side bake (default 900).")] int waitSeconds = 900,
             [CliArg("server", ServerArgDescription)] string server = null)
         {
-            if (string.IsNullOrWhiteSpace(prompt))
-                throw new ArgumentException("Prompt is empty.");
-            long? parsedSeed = null;
-            if (!string.IsNullOrWhiteSpace(seed))
-            {
-                if (!long.TryParse(seed, out var value))
-                    throw new ArgumentException("--seed must be an integer.");
-                parsedSeed = value;
-            }
+            if (waitSeconds <= 0)
+                throw new ArgumentException("--wait-seconds must be greater than zero.");
 
             var client = Client(server);
-            var request = new CreateCharacterRequest
-            {
-                Prompt = prompt,
-                Interpreter = interpreter,
-                Turbo = turbo,
-                Seed = parsedSeed,
-                IdempotencyKey = idempotencyKey ?? CharacterFactoryClient.NewIdempotencyKey(),
-            };
+            var request = CreateRequest(prompt, interpreter, turbo, seed, idempotencyKey);
             Debug.Log($"[character-factory] create key {request.IdempotencyKey}; retain it only for retries of this request.");
             var job = await client.CreateCharacterAsync(request);
             Debug.Log($"[character-factory] queued job {job.Id}; waiting for the bake…");
-            job = await client.WaitForJobAsync(job.Id, TimeSpan.FromSeconds(timeout),
+            job = await client.WaitForJobAsync(job.Id, TimeSpan.FromSeconds(waitSeconds),
                 j => Debug.Log($"[character-factory] {j.Id}: {j.Status}/{j.Stage} {j.Progress:P0}"));
 
             bool includeReference = referenceController || walking || speed > 0f;
@@ -311,6 +340,29 @@ namespace CharacterFactory.Editor
         // ------------------------------------------------------------------ helpers
         static CharacterFactoryClient Client(string serverOverride) =>
             new CharacterFactoryClient(CharacterFactorySettings.ResolveServer(serverOverride));
+
+        static CreateCharacterRequest CreateRequest(
+            string prompt, string interpreter, bool turbo, string seed, string idempotencyKey)
+        {
+            if (string.IsNullOrWhiteSpace(prompt))
+                throw new ArgumentException("Prompt is empty.");
+            long? parsedSeed = null;
+            if (!string.IsNullOrWhiteSpace(seed))
+            {
+                if (!long.TryParse(seed, out var value))
+                    throw new ArgumentException("--seed must be an integer.");
+                parsedSeed = value;
+            }
+
+            return new CreateCharacterRequest
+            {
+                Prompt = prompt,
+                Interpreter = interpreter,
+                Turbo = turbo,
+                Seed = parsedSeed,
+                IdempotencyKey = idempotencyKey ?? CharacterFactoryClient.NewIdempotencyKey(),
+            };
+        }
 
         static Vector3 ParsePosition(string position)
         {

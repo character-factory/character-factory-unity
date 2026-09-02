@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1
+
+- Rename `cf-create --timeout` to `--wait-seconds` and raise its default wait to 900 seconds.
+- Preserve timed-out server jobs and report their job id and exact `cf-import` recovery command.
+- Add `cf-submit` for submitting a generation job without waiting or importing.
+- Update Unity Pipeline to 0.6.0-exp.1 for current Unity CLI compatibility.
+
 ## 0.1.0
 
 - Require export-manifest 0.6, its 54-role Humanoid map, mouth-interior topology, and all 72 named

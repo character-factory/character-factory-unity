@@ -66,4 +66,4 @@ metadata for a consumer's locomotion or IK system.
 
 - `com.unity.cloud.gltfast` 6.10.1
 - `com.unity.nuget.newtonsoft-json` 3.2.2
-- `com.unity.pipeline` 0.5.0-exp.1
+- `com.unity.pipeline` 0.6.0-exp.1

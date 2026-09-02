@@ -185,6 +185,7 @@ namespace CharacterFactory.Core
     /// </summary>
     public sealed class CharacterFactoryClient
     {
+        public const string ImportRecoveryCommand = "unity cmd cf-import --id <id> --json";
         static readonly HttpClient Http = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
         public string BaseUrl { get; }
 
@@ -295,8 +296,10 @@ namespace CharacterFactory.Core
                     throw new InvalidOperationException($"Character Factory job {job.Id} was cancelled.");
                 if (DateTime.UtcNow > deadline)
                     throw new TimeoutException(
-                        $"Job {job.Id} did not finish after {timeout.TotalSeconds:F0}s " +
-                        $"(last status: {job.Status}, stage: {job.Stage}, progress: {job.Progress:P0}).");
+                        $"Character Factory job {job.Id} did not finish after {timeout.TotalSeconds:F0}s " +
+                        $"(last status: {job.Status}, stage: {job.Stage}, progress: {job.Progress:P0}). " +
+                        $"The server job is still running. Poll GET /v0/jobs/{job.Id}; when it reports " +
+                        $"completion, recover with: {ImportRecoveryCommand}");
                 await Task.Delay(delay, ct);
             }
         }

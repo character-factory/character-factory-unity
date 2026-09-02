@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -65,6 +66,34 @@ namespace CharacterFactory.Tests
             }));
             CollectionAssert.AreEquivalent(new[] { "from", "turbo" },
                 rebuild.Properties().Select(p => p.Name));
+        }
+
+        [Test]
+        public void CreateWaitAndSubmitContractsAreAgentRecoverable()
+        {
+            var create = typeof(CharacterFactoryCliCommands).GetMethod(
+                nameof(CharacterFactoryCliCommands.Create), BindingFlags.Public | BindingFlags.Static);
+            Assert.That(create, Is.Not.Null);
+            var parameters = create.GetParameters();
+            Assert.That(parameters.Any(p => p.Name == "timeout"), Is.False,
+                "The Unity CLI reserves --timeout globally.");
+            var wait = parameters.Single(p => p.Name == "waitSeconds");
+            Assert.That(wait.DefaultValue, Is.EqualTo(900));
+
+            var submit = typeof(CharacterFactoryCliCommands).GetMethod(
+                nameof(CharacterFactoryCliCommands.Submit), BindingFlags.Public | BindingFlags.Static);
+            Assert.That(submit, Is.Not.Null);
+            Assert.That(submit.ReturnType, Is.EqualTo(typeof(System.Threading.Tasks.Task<
+                CharacterFactoryCliCommands.CfSubmitResponse>)));
+
+            CollectionAssert.AreEquivalent(new[]
+            {
+                "Server", "JobId", "Status", "Stage", "Progress", "IdempotencyKey",
+                "JobUrl", "RecoveryCommand", "ServerWarnings",
+            }, typeof(CharacterFactoryCliCommands.CfSubmitResponse)
+                .GetFields(BindingFlags.Instance | BindingFlags.Public).Select(f => f.Name));
+            Assert.That(CharacterFactoryClient.ImportRecoveryCommand,
+                Is.EqualTo("unity cmd cf-import --id <id> --json"));
         }
 
         [Test]

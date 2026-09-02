@@ -79,7 +79,7 @@ namespace CharacterFactory.Editor
                 var job = await client.CreateCharacterAsync(request);
 
                 Progress($"Job {job.Id} accepted");
-                job = await client.WaitForJobAsync(job.Id, TimeSpan.FromSeconds(300),
+                job = await client.WaitForJobAsync(job.Id, TimeSpan.FromSeconds(900),
                     j => Progress($"Server: {j.Status} / {j.Stage} ({j.Progress:P0})"));
 
                 Progress("Downloading and importing…");
