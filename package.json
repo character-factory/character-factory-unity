@@ -1,0 +1,27 @@
+{
+  "name": "com.character-factory.unity",
+  "version": "0.1.0",
+  "displayName": "Character Factory Unity",
+  "description": "Generate or import Character Factory characters as controller-free Humanoid prefabs, with facial controls, optional reference motion, and SOMA-77 body-animation import.",
+  "unity": "6000.0",
+  "keywords": [
+    "character",
+    "gltf",
+    "humanoid",
+    "avatar",
+    "character-factory"
+  ],
+  "dependencies": {
+    "com.unity.cloud.gltfast": "6.10.1",
+    "com.unity.nuget.newtonsoft-json": "3.2.2",
+    "com.unity.pipeline": "0.5.0-exp.1"
+  },
+  "author": {
+    "name": "Character Factory"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/character-factory/character-factory-unity.git"
+  }
+}
